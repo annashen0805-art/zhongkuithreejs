@@ -31,6 +31,11 @@ const keys = {
     KeyS: false 
 }; // Track key states
 
+// Touch control variables
+let touchStartX = null;
+let touchStartY = null;
+let touchActive = { left: false, right: false, up: false, down: false };
+
 // Handle keydown events
 window.addEventListener('keydown', (event) => {
     if (event.code in keys) {
@@ -45,6 +50,55 @@ window.addEventListener('keyup', (event) => {
     }
 });
 
+// Handle touchstart events
+window.addEventListener('touchstart', (event) => {
+    const touch = event.touches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+});
+
+// Handle touchmove events
+window.addEventListener('touchmove', (event) => {
+    if (!touchStartX || !touchStartY) return;
+    
+    const touch = event.touches[0];
+    const deltaX = touch.clientX - touchStartX;
+    const deltaY = touch.clientY - touchStartY;
+    const threshold = 20; // Minimum swipe distance to register movement
+    
+    // Reset touch states
+    touchActive = { left: false, right: false, up: false, down: false };
+    
+    // Determine if touch is on left or right half of the screen
+    const isLeftHalf = touchStartX < window.innerWidth / 2;
+    
+    if (isLeftHalf) {
+        // Left half: control left/right movement
+        if (Math.abs(deltaX) > threshold) {
+            if (deltaX < 0) touchActive.left = true; // Swipe left
+            else touchActive.right = true; // Swipe right
+        }
+    } else {
+        // Right half: control up/down movement
+        if (Math.abs(deltaY) > threshold) {
+            if (deltaY < 0) touchActive.up = true; // Swipe up
+            else touchActive.down = true; // Swipe down
+        }
+    }
+    
+    // Update touch start positions for continuous swiping
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+});
+
+// Handle touchend events
+window.addEventListener('touchend', () => {
+    // Reset touch states when touch ends
+    touchActive = { left: false, right: false, up: false, down: false };
+    touchStartX = null;
+    touchStartY = null;
+});
+
 // Animation loop
 function animate() {
     requestAnimationFrame(animate);
@@ -54,16 +108,16 @@ function animate() {
     cube.rotation.y += 0.01;
     
     // Move the cube based on key input
-    if (keys.ArrowLeft || keys.KeyA) {
+    if (keys.ArrowLeft || keys.KeyA || touchActive.left) {
         cube.position.x -= moveSpeed; // Move left
     }
-    if (keys.ArrowRight || keys.KeyD) {
+    if (keys.ArrowRight || keys.KeyD || touchActive.right) {
         cube.position.x += moveSpeed; // Move right
     }
-    if (keys.ArrowUp || keys.KeyW) {
+    if (keys.ArrowUp || keys.KeyW || touchActive.up) {
         cube.position.y += moveSpeed; // Move up
     }
-    if (keys.ArrowDown || keys.KeyS) {
+    if (keys.ArrowDown || keys.KeyS || touchActive.down) {
         cube.position.y -= moveSpeed; // Move down
     }
     
