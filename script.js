@@ -1,13 +1,14 @@
 // Set up the scene, camera, and renderer
 const scene = new THREE.Scene();
+const canvas = document.getElementById('webgl-canvas');
 const camera = new THREE.PerspectiveCamera(
     75, // Field of view
-    window.innerWidth / window.innerHeight, // Aspect ratio
+    canvas.clientWidth / canvas.clientHeight, // Aspect ratio based on canvas size
     0.1, // Near clipping plane
     1000 // Far clipping plane
 );
-const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('webgl-canvas') });
-renderer.setSize(window.innerWidth, window.innerHeight);
+const renderer = new THREE.WebGLRenderer({ canvas: canvas });
+renderer.setSize(canvas.clientWidth, canvas.clientHeight); // Use canvas dimensions
 
 // Create a cube
 const geometry = new THREE.BoxGeometry(1, 1, 1);
@@ -31,10 +32,42 @@ const keys = {
     KeyS: false 
 }; // Track key states
 
-// Touch control variables
-let touchStartX = null;
-let touchStartY = null;
-let touchActive = { left: false, right: false, up: false, down: false };
+// Button states for touch/mouse input
+const buttons = {
+    left: false,
+    right: false,
+    up: false,
+    down: false
+};
+
+// Get button elements
+const leftBtn = document.getElementById('left-btn');
+const rightBtn = document.getElementById('right-btn');
+const upBtn = document.getElementById('up-btn');
+const downBtn = document.getElementById('down-btn');
+
+// Handle button press (mouse or touch)
+function handleButtonPress(button, state) {
+    buttons[button] = state;
+}
+
+// Add event listeners for buttons (both mouse and touch)
+[leftBtn, rightBtn, upBtn, downBtn].forEach((btn, index) => {
+    const buttonName = ['left', 'right', 'up', 'down'][index];
+    
+    // Mouse events (for desktop testing)
+    btn.addEventListener('mousedown', () => handleButtonPress(buttonName, true));
+    btn.addEventListener('mouseup', () => handleButtonPress(buttonName, false));
+    btn.addEventListener('mouseleave', () => handleButtonPress(buttonName, false)); // Stop if mouse leaves
+    
+    // Touch events (for mobile)
+    btn.addEventListener('touchstart', (e) => {
+        e.preventDefault(); // Prevent scrolling/zooming
+        handleButtonPress(buttonName, true);
+    });
+    btn.addEventListener('touchend', () => handleButtonPress(buttonName, false));
+    btn.addEventListener('touchcancel', () => handleButtonPress(buttonName, false)); // Handle interruptions
+});
 
 // Handle keydown events
 window.addEventListener('keydown', (event) => {
@@ -50,54 +83,25 @@ window.addEventListener('keyup', (event) => {
     }
 });
 
-// Handle touchstart events
-window.addEventListener('touchstart', (event) => {
-    const touch = event.touches[0];
-    touchStartX = touch.clientX;
-    touchStartY = touch.clientY;
-});
-
-// Handle touchmove events
-window.addEventListener('touchmove', (event) => {
-    if (!touchStartX || !touchStartY) return;
+// Function to calculate dynamic boundaries based on canvas size
+function getBoundaries() {
+    const fov = camera.fov * (Math.PI / 180); // Convert FOV to radians
+    const aspect = canvas.clientWidth / canvas.clientHeight;
+    const z = camera.position.z;
     
-    const touch = event.touches[0];
-    const deltaX = touch.clientX - touchStartX;
-    const deltaY = touch.clientY - touchStartY;
-    const threshold = 20; // Minimum swipe distance to register movement
+    // Calculate visible height and width at z=0 (cube's plane)
+    const visibleHeight = 2 * Math.tan(fov / 2) * z;
+    const visibleWidth = visibleHeight * aspect;
     
-    // Reset touch states
-    touchActive = { left: false, right: false, up: false, down: false };
-    
-    // Determine if touch is on left or right half of the screen
-    const isLeftHalf = touchStartX < window.innerWidth / 2;
-    
-    if (isLeftHalf) {
-        // Left half: control left/right movement
-        if (Math.abs(deltaX) > threshold) {
-            if (deltaX < 0) touchActive.left = true; // Swipe left
-            else touchActive.right = true; // Swipe right
-        }
-    } else {
-        // Right half: control up/down movement
-        if (Math.abs(deltaY) > threshold) {
-            if (deltaY < 0) touchActive.up = true; // Swipe up
-            else touchActive.down = true; // Swipe down
-        }
-    }
-    
-    // Update touch start positions for continuous swiping
-    touchStartX = touch.clientX;
-    touchStartY = touch.clientY;
-});
-
-// Handle touchend events
-window.addEventListener('touchend', () => {
-    // Reset touch states when touch ends
-    touchActive = { left: false, right: false, up: false, down: false };
-    touchStartX = null;
-    touchStartY = null;
-});
+    // Set boundaries to keep cube within visible area (accounting for cube size)
+    const margin = 0.5; // Half of cube size (1x1x1) to keep edges inside
+    return {
+        xMin: -visibleWidth / 2 + margin,
+        xMax: visibleWidth / 2 - margin,
+        yMin: -visibleHeight / 2 + margin,
+        yMax: visibleHeight / 2 - margin
+    };
+}
 
 // Animation loop
 function animate() {
@@ -107,19 +111,26 @@ function animate() {
     cube.rotation.x += 0.01;
     cube.rotation.y += 0.01;
     
-    // Move the cube based on key input
-    if (keys.ArrowLeft || keys.KeyA || touchActive.left) {
+    // Move the cube based on key or button input
+    if (keys.ArrowLeft || keys.KeyA || buttons.left) {
         cube.position.x -= moveSpeed; // Move left
     }
-    if (keys.ArrowRight || keys.KeyD || touchActive.right) {
+    if (keys.ArrowRight || keys.KeyD || buttons.right) {
         cube.position.x += moveSpeed; // Move right
     }
-    if (keys.ArrowUp || keys.KeyW || touchActive.up) {
+    if (keys.ArrowUp || keys.KeyW || buttons.up) {
         cube.position.y += moveSpeed; // Move up
     }
-    if (keys.ArrowDown || keys.KeyS || touchActive.down) {
+    if (keys.ArrowDown || keys.KeyS || buttons.down) {
         cube.position.y -= moveSpeed; // Move down
     }
+    
+    // Apply dynamic boundaries
+    const boundaries = getBoundaries();
+    if (cube.position.x < boundaries.xMin) cube.position.x = boundaries.xMin;
+    if (cube.position.x > boundaries.xMax) cube.position.x = boundaries.xMax;
+    if (cube.position.y < boundaries.yMin) cube.position.y = boundaries.yMin;
+    if (cube.position.y > boundaries.yMax) cube.position.y = boundaries.yMax;
     
     // Render the scene
     renderer.render(scene, camera);
@@ -127,8 +138,8 @@ function animate() {
 
 // Handle window resizing
 window.addEventListener('resize', () => {
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    camera.aspect = window.innerWidth / window.innerHeight;
+    renderer.setSize(canvas.clientWidth, canvas.clientHeight); // Update to canvas size
+    camera.aspect = canvas.clientWidth / canvas.clientHeight;
     camera.updateProjectionMatrix();
 });
 
