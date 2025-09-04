@@ -1,10 +1,57 @@
 body {
     margin: 0;
     overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #000; /* Black background to contrast with canvas */
 }
 
 #webgl-canvas {
-    width: 100vw;
-    height: 100vh;
+    width: 90vw; /* Larger canvas: 90% of viewport width */
+    height: 90vh; /* Larger canvas: 90% of viewport height */
     display: block;
+}
+
+.controls {
+    position: fixed;
+    bottom: 10px; /* Close to bottom for accessibility */
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    z-index: 10; /* Ensure buttons are above the canvas */
+}
+
+.left-controls, .right-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 15px; /* Spacing for larger buttons */
+}
+
+.left-controls {
+    margin-left: 20px;
+}
+
+.right-controls {
+    margin-right: 20px;
+}
+
+.control-btn {
+    width: 80px; /* Keep larger buttons */
+    height: 80px;
+    font-size: 32px; /* Larger arrow symbols */
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    border: 2px solid white;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: manipulation; /* Prevent default touch behaviors */
+    cursor: pointer;
+}
+
+.control-btn:active {
+    background-color: rgba(0, 255, 0, 0.7); /* Green feedback when pressed */
 }
